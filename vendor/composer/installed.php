@@ -3,7 +3,7 @@
         'name' => 'udx/wp-stateless-litespeed-cache-addon',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'a326ccc1e7ed6e494b98993452f0bbafa0a9811f',
+        'reference' => 'd183d3c2c28c21d2759f024429c9b4f7180caecf',
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -319,7 +319,7 @@
         'udx/wp-stateless-litespeed-cache-addon' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'a326ccc1e7ed6e494b98993452f0bbafa0a9811f',
+            'reference' => 'd183d3c2c28c21d2759f024429c9b4f7180caecf',
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

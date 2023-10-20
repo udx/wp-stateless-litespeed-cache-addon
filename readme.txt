@@ -13,5 +13,8 @@ Provides compatibility between LiteSpeed Cache and WP-Stateless plugins.
 
 == Description ==
 
-
+Sync images optimized by LiteSpeed Cache.
+Bypass LiteSpeed Cache image check.
+Override LiteSpeed Cache file information for files located on GCS.
+Supports webp images.  
 
