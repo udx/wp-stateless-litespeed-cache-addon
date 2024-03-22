@@ -1,6 +1,6 @@
 <?php
 
-namespace WPSL\LiteSpeedCache;
+namespace SLCA\LiteSpeedCache;
 
 use PHPUnit\Framework\TestCase;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
