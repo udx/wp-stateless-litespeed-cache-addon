@@ -1,12 +1,12 @@
 <?php
 
-namespace WPSL\LiteSpeedCache;
+namespace SLCA\LiteSpeedCache;
 
 use wpCloud\StatelessMedia\Compatibility;
 use wpCloud\StatelessMedia\Utility;
 
 /**
- * @todo make testable and test
+ * Class LiteSpeedCache
  */
 class LiteSpeedCache extends Compatibility {
   protected $id = 'lscache_wp';
@@ -45,6 +45,51 @@ class LiteSpeedCache extends Compatibility {
   }
 
   /**
+   * Get the md5_file hash from cloud meta.
+   * 
+   * @param int $attachment_id
+   * @return array
+   */
+  private function _get_md5_meta($attachment_id) {
+    // If WP-Stateless version >= 4.0.0
+    if ( function_exists('ud_stateless_db') ) {
+      $cloud_meta = [
+        'fileMd5' => ud_stateless_db()->get_file_meta_value($attachment_id, 'fileMd5', []),
+      ];
+    } else {
+      $cloud_meta = get_post_meta($attachment_id, 'sm_cloud', true);
+    }
+
+    return $cloud_meta;
+  }
+
+  /**
+   * Update the md5_file hash in cloud meta.
+   * 
+   * @param int $attachment_id
+   * @param array $cloud_meta
+   */
+  private function _update_md5_meta($attachment_id, $cloud_meta) {
+    // If WP-Stateless version >= 4.0.0, postmeta can be limited to 'fileMd5' only
+    // and we should not override it 
+    $test_meta = $cloud_meta;
+    unset($test_meta['fileMd5']);
+
+    if ( empty($test_meta) ) {
+      $test_meta = get_post_meta($attachment_id, 'sm_cloud', true);
+      $test_meta['fileMd5'] = $cloud_meta['fileMd5'];
+      $cloud_meta = $test_meta;
+    }
+
+    update_post_meta($attachment_id, 'sm_cloud', $cloud_meta);
+
+    // If WP-Stateless version >= 4.0.0
+    if ( function_exists('ud_stateless_db') ) {
+      ud_stateless_db()->update_file_meta($attachment_id, 'fileMd5', $cloud_meta['fileMd5']);
+    }
+  }
+
+  /**
    * Sync the image when Lite Speed plugin pull the optimized image.
    * We need to overwrite the existing image.
    * @param stdClass Object $row_img
@@ -79,7 +124,7 @@ class LiteSpeedCache extends Compatibility {
   public function sync_image($row_img, $local_file) {
     $rm_ori_bkup = apply_filters('litespeed_conf', 'img_optm-rm_bkup');
     $gs_name = apply_filters('wp_stateless_file_name', $row_img->src);
-    $cloud_meta = get_post_meta($row_img->post_id, 'sm_cloud', true);
+    $cloud_meta = $this->_get_md5_meta($row_img->post_id);
 
     if (empty($cloud_meta)) $cloud_meta = array();
 
@@ -91,7 +136,7 @@ class LiteSpeedCache extends Compatibility {
     }
 
     $cloud_meta['fileMd5'][$gs_name] = md5_file($local_file);
-    update_post_meta($row_img->post_id, 'sm_cloud', $cloud_meta);
+    $this->_update_md5_meta($row_img->post_id, $cloud_meta);
     do_action('sm:sync::syncFile', $gs_name, $local_file, 2);
   }
 
@@ -106,9 +151,9 @@ class LiteSpeedCache extends Compatibility {
     if ($optm_webp) {
       $gs_name = apply_filters('wp_stateless_file_name', $row_img->src . '.webp');
 
-      $cloud_meta = get_post_meta($row_img->post_id, 'sm_cloud', true);
+      $cloud_meta = $this->_get_md5_meta($row_img->post_id);
       $cloud_meta['fileMd5'][$gs_name] = md5_file($local_file);
-      update_post_meta($row_img->post_id, 'sm_cloud', $cloud_meta);
+      $this->_update_md5_meta($row_img->post_id, $cloud_meta);
 
       add_filter('upload_mimes', array($this, 'add_webp_mime'), 10, 2);
       do_action('sm:sync::syncFile', $gs_name, $local_file, 2, array('use_root' => true));
@@ -147,7 +192,7 @@ class LiteSpeedCache extends Compatibility {
 
     try {
       $metadata = wp_get_attachment_metadata($post_id);
-      $cloud_meta = get_post_meta($post_id, 'sm_cloud', true);
+      $cloud_meta = $this->_get_md5_meta($post_id);
 
       if (!empty($metadata['gs_link'])) {
         $short_file_path = apply_filters('wp_stateless_file_name', $short_file_path);
@@ -228,7 +273,7 @@ class LiteSpeedCache extends Compatibility {
    */
   public function update_hash($attachment_id, $gs_name_new, $gs_name_old, $delete = false) {
     try {
-      $cloud_meta = get_post_meta($attachment_id, 'sm_cloud', true);
+      $cloud_meta = $this->_get_md5_meta($attachment_id);
 
       if (!$delete) {
         if ($gs_name_old && !empty($cloud_meta['fileMd5'][$gs_name_old])) {
@@ -240,7 +285,9 @@ class LiteSpeedCache extends Compatibility {
       }
 
       if (isset($cloud_meta['fileMd5'][$gs_name_old])) unset($cloud_meta['fileMd5'][$gs_name_old]);
-      update_post_meta($attachment_id, 'sm_cloud', $cloud_meta);
+
+      $this->_update_md5_meta($attachment_id, $cloud_meta);
+      
       return true;
     } catch (\Throwable $th) {
       error_log(print_r($th, true));
@@ -262,11 +309,27 @@ class LiteSpeedCache extends Compatibility {
   public function cloud_meta_add_file_md5($cloud_meta, $media, $image_size, $img, $bucketLink) {
     if ($file_hash = md5_file($img['path'])) {
       $gs_name = !empty($media['name']) ? $media['name'] : $img['gs_name'];
-      $extension = pathinfo($gs_name, PATHINFO_EXTENSION);
-      $bk_file = substr($gs_name, 0, -strlen($extension)) . 'bk.' . $extension;
 
       // Storing file hash
       $cloud_meta['fileMd5'][$gs_name] = $file_hash;
+
+      // If WP-Stateless version >= 4.0.0
+      if ( function_exists('ud_stateless_db') ) {
+        $metadata = $media['metadata'] ?? [];
+
+        $post_id = null;
+        
+        if ( isset($metadata['object-id']) ) {
+          $post_id = $metadata['object-id'];
+        } else if ( isset($metadata['child-of']) ) {
+          $post_id = $metadata['child-of'];
+        }
+
+        $meta = ud_stateless_db()->get_file_meta_value($post_id, 'fileMd5', []);
+        $meta[$gs_name] = $file_hash;
+    
+        ud_stateless_db()->update_file_meta($post_id, 'fileMd5', $meta);
+      }
     }
 
     return $cloud_meta;
@@ -279,7 +342,7 @@ class LiteSpeedCache extends Compatibility {
    * @param $metadata
    */
   public function manual_sync_backup_file($attachment_id, $metadata) {
-    $cloud_meta = get_post_meta($attachment_id, 'sm_cloud', true);
+    $cloud_meta = $this->_get_md5_meta($attachment_id);
 
     if (!empty($cloud_meta['fileMd5'])) {
       $upload_dir = wp_upload_dir();
@@ -306,7 +369,7 @@ class LiteSpeedCache extends Compatibility {
    * @param $attachment_id
    */
   public function update_md5_and_manual_sync($attachment_id) {
-    $cloud_meta = get_post_meta($attachment_id, 'sm_cloud', true);
+    $cloud_meta = $this->_get_md5_meta($attachment_id);
     $metadata = wp_get_attachment_metadata($attachment_id);
     $image_sizes = Utility::get_path_and_url($metadata, $attachment_id);
 
@@ -359,6 +422,6 @@ class LiteSpeedCache extends Compatibility {
       }
     }
 
-    update_post_meta($attachment_id, 'sm_cloud', $cloud_meta);
+    $this->_update_md5_meta($attachment_id, $cloud_meta);
   }
 }
