@@ -54,7 +54,7 @@ class LiteSpeedCache extends Compatibility {
     // If WP-Stateless version >= 4.0.0
     if ( function_exists('ud_stateless_db') ) {
       $cloud_meta = [
-        'fileMd5' => ud_stateless_db()->get_file_meta_value($attachment_id, 'fileMd5', []),
+        'fileMd5' => apply_filters('wp_stateless_get_file_meta_value', [], $attachment_id, 'fileMd5', []),
       ];
     } else {
       $cloud_meta = get_post_meta($attachment_id, 'sm_cloud', true);
@@ -84,9 +84,7 @@ class LiteSpeedCache extends Compatibility {
     update_post_meta($attachment_id, 'sm_cloud', $cloud_meta);
 
     // If WP-Stateless version >= 4.0.0
-    if ( function_exists('ud_stateless_db') ) {
-      ud_stateless_db()->update_file_meta($attachment_id, 'fileMd5', $cloud_meta['fileMd5']);
-    }
+    do_action('wp_stateless_set_file_meta', $attachment_id, 'fileMd5', $cloud_meta['fileMd5']);
   }
 
   /**
@@ -325,10 +323,10 @@ class LiteSpeedCache extends Compatibility {
           $post_id = $metadata['child-of'];
         }
 
-        $meta = ud_stateless_db()->get_file_meta_value($post_id, 'fileMd5', []);
+        $meta = apply_filters('wp_stateless_get_file_meta_value', [], $post_id, 'fileMd5', []);
         $meta[$gs_name] = $file_hash;
     
-        ud_stateless_db()->update_file_meta($post_id, 'fileMd5', $meta);
+        do_action('wp_stateless_set_file_meta', $post_id, 'fileMd5', $meta);
       }
     }
 
