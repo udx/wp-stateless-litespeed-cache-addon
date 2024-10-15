@@ -4,6 +4,7 @@ namespace SLCA\LiteSpeedCache;
 
 use wpCloud\StatelessMedia\Compatibility;
 use wpCloud\StatelessMedia\Utility;
+use wpCloud\StatelessMedia\Helper;
 
 /**
  * Class LiteSpeedCache
@@ -212,8 +213,8 @@ class LiteSpeedCache extends Compatibility {
           $info = array('url' => $url, 'md5' => $md5, 'size' => 1,);
         }
       }
-    } catch (\Throwable $th) {
-      error_log(print_r($th, true));
+    } catch (\Throwable $e) {
+      Helper::log( $e->getMessage() );
     }
 
     return $info;
@@ -287,8 +288,9 @@ class LiteSpeedCache extends Compatibility {
       $this->_update_md5_meta($attachment_id, $cloud_meta);
       
       return true;
-    } catch (\Throwable $th) {
-      error_log(print_r($th, true));
+    } catch (\Throwable $e) {
+      Helper::log( $e->getMessage() );
+
       return false;
     }
     return false;
