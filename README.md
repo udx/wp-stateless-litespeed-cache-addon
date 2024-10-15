@@ -11,7 +11,7 @@ Provides compatibility between the [LiteSpeed Cache](https://wordpress.org/plugi
 
 ### Notes
 
-* Tested with LiteSpeed Cache plugin version 6.1
+* Tested with LiteSpeed Cache plugin version 6.5.1
 
 ### Support, Feedback, & Contribute
 
